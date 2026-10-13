@@ -97,6 +97,94 @@ describe("install multi-agent texts", () => {
 	});
 });
 
+describe("install into a config the editor cannot fully read", () => {
+	beforeEach(() => {
+		tempRoot = mkdtempSync(join(tmpdir(), "omo-install-"));
+		codexHome = join(tempRoot, "codex");
+		mkdirSync(codexHome);
+	});
+
+	afterEach(() => {
+		rmSync(tempRoot, { recursive: true, force: true });
+	});
+
+	for (const [where, config] of [
+		["a top-level dotted key", "features.multi_agent_v2.enabled = true\n"],
+		["a dotted key under [features]", "[features]\nmulti_agent_v2.enabled = true\n"],
+	]) {
+		it(`#given multi_agent_v2 written with ${where} #when installing #then no second definition is added and the file still parses`, () => {
+			writeFileSync(configPath(), config);
+
+			const { logs } = runInstall();
+
+			const after = readFileSync(configPath(), "utf8");
+			assert.doesNotMatch(after, /\[features\.multi_agent_v2\]/);
+			assert.ok(logs.some((line) => line.startsWith("skip multi-agent texts")));
+			assertParses(after);
+		});
+	}
+
+	it("#given a single-quoted model_instructions_file #when installing #then it is kept and the skip is reported", () => {
+		writeFileSync(configPath(), "model_instructions_file = '/home/me/custom.md'\n");
+
+		const { logs } = runInstall();
+
+		const after = readFileSync(configPath(), "utf8");
+		assert.match(after, /^model_instructions_file = '\/home\/me\/custom\.md'$/m);
+		assert.equal(after.match(/model_instructions_file/g).length, 1);
+		assert.ok(logs.some((line) => line.includes("skip model_instructions_file")));
+		assertParses(after);
+	});
+});
+
+describe("install agent roles", () => {
+	beforeEach(() => {
+		tempRoot = mkdtempSync(join(tmpdir(), "omo-install-"));
+		codexHome = join(tempRoot, "codex");
+		mkdirSync(codexHome);
+	});
+
+	afterEach(() => {
+		rmSync(tempRoot, { recursive: true, force: true });
+	});
+
+	it("#given the user points a role at the installed file by its absolute path #when reinstalling #then the file is kept", () => {
+		runInstall();
+		const explorer = join(codexHome, "agents", "explorer.toml");
+		const config = readFileSync(configPath(), "utf8").replace('config_file = "./agents/explorer.toml"', `config_file = ${JSON.stringify(explorer)}`);
+		writeFileSync(configPath(), config);
+
+		const { logs } = runInstall();
+
+		assert.ok(existsSync(explorer));
+		assert.ok(logs.some((line) => line.startsWith("skip role explorer.toml")));
+		assert.match(readFileSync(configPath(), "utf8"), new RegExp(`config_file = ${JSON.stringify(explorer).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+	});
+
+	it("#given a role the plugin no longer ships #when reinstalling #then its file and the registration the installer wrote are removed", () => {
+		runInstall();
+		const manifest = join(codexHome, "agents", ".omo-lite-agents.json");
+		const listed = JSON.parse(readFileSync(manifest, "utf8")).agents;
+		writeFileSync(manifest, JSON.stringify({ agents: [...listed, "retired.toml"] }));
+		writeFileSync(join(codexHome, "agents", "retired.toml"), 'name = "retired"\n');
+		writeFileSync(configPath(), `${readFileSync(configPath(), "utf8")}\n[agents.retired]\nconfig_file = "./agents/retired.toml"\n`);
+
+		runInstall();
+
+		assert.ok(!existsSync(join(codexHome, "agents", "retired.toml")));
+		const after = readFileSync(configPath(), "utf8");
+		assert.doesNotMatch(after, /\[agents\.retired\]/);
+		assertParses(after);
+	});
+});
+
+// Codex itself must be able to read the result; Python's tomllib is a strict TOML 1.0 reader.
+function assertParses(text) {
+	const result = spawnSync("python3", ["-c", "import sys, tomllib; tomllib.loads(sys.stdin.read())"], { input: text, encoding: "utf8" });
+	if (result.error?.code === "ENOENT") return;
+	assert.equal(result.status, 0, `config.toml no longer parses: ${result.stderr}`);
+}
+
 function tableString(table, key) {
 	const match = new RegExp(`^${key} = (".*")$`, "m").exec(table);
 	return match === null ? null : JSON.parse(match[1]);
