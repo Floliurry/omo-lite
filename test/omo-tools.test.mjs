@@ -230,6 +230,18 @@ describe("omo grep and glob", () => {
 		assert.equal((await grepCommand(["("], { cwd: root })).code, 2);
 	});
 
+	it("#given a path that exists and one that does not #when searched or globbed #then the matches are printed with rg's error and exit code 2", async () => {
+		write("a.txt", "hit\n");
+
+		const grep = await grepCommand(["hit", "a.txt", "missing"], { cwd: root });
+		assert.equal(grep.code, 2);
+		assert.match(grep.output, /^a\.txt\n1:hit\n\[omo grep: rg also reported errors, so these results may be incomplete: .*missing/);
+
+		const glob = await globCommand(["*.txt", ".", "missing"], { cwd: root });
+		assert.equal(glob.code, 2);
+		assert.match(glob.output, /a\.txt\n\[omo glob: rg also reported errors, so these results may be incomplete: .*missing/);
+	});
+
 	it("#given more files than the cap #when globbed #then paths are sorted and the rest is counted", async () => {
 		for (const name of ["c.ts", "a.ts", "b.ts", "d.md"]) write(`src/${name}`, "");
 

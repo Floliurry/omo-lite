@@ -319,7 +319,7 @@ export async function grepCommand(args, options = {}) {
 				: `[omo grep: showing the first ${shown.length} lines of ${counted} matching lines in ${result.stopped ? "more than " : ""}${files} files. Narrow the pattern or the paths, or list the files first with omo grep -l.]`,
 		);
 	}
-	return ok(out.join("\n"));
+	return withSearchErrors("grep", out, result);
 }
 
 // ---- glob ----
@@ -341,7 +341,16 @@ export async function globCommand(args, options = {}) {
 	if (result.code === 2 && shown.length === 0) return fail(result.stderr.trim() || "omo glob: rg failed.", 2);
 	if (shown.length === 0) return fail(`No files match ${pattern}.`);
 	if (total > shown.length) shown.push(`[omo glob: showing ${shown.length} of ${total} files. Narrow the pattern or the directory.]`);
-	return ok(shown.join("\n"));
+	return withSearchErrors("glob", shown, result);
+}
+
+// rg exits with 2 when part of the search failed, such as a path that does not exist, even when
+// other paths matched. The matches are still printed, with rg's message and its exit code, so a
+// partial search is not taken for a complete one.
+function withSearchErrors(command, lines, result) {
+	if (result.code !== 2) return ok(lines.join("\n"));
+	const message = result.stderr.trim().split("\n").slice(0, 3).join("; ");
+	return fail([...lines, `[omo ${command}: rg also reported errors, so these results may be incomplete: ${message || "no message"}]`].join("\n"), 2);
 }
 
 // Streams a program's stdout line by line. `onLine` returns false to stop early; the program is
