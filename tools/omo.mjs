@@ -13,7 +13,7 @@
 // the content. The records live in the temp directory; hooks/read-reset.mjs clears a thread's
 // records after a compaction, when the earlier output has left the context.
 import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { closeSync, mkdirSync, openSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
@@ -421,8 +421,10 @@ export async function runCommand(args, options = {}) {
 	let fd = null;
 	try {
 		mkdirSync(logDir, { recursive: true });
-		logPath = join(logDir, `${Date.now()}-${slug(command.join(" "))}.log`);
-		fd = openSync(logPath, "w");
+		// The random part keeps two runs of the same command in the same millisecond apart; "wx"
+		// refuses to reuse a file that exists anyway.
+		logPath = join(logDir, `${Date.now()}-${randomBytes(4).toString("hex")}-${slug(command.join(" "))}.log`);
+		fd = openSync(logPath, "wx");
 	} catch {
 		logPath = null;
 	}

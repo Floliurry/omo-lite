@@ -259,7 +259,7 @@ describe("omo run", () => {
 
 		const lines = output.split("\n");
 		assert.equal(code, 3);
-		assert.match(lines[0], /^omo run: saving the output to .*\/logs\/\d+-echo-one-echo-two-2-exit-3\.log$/);
+		assert.match(lines[0], /^omo run: saving the output to .*\/logs\/\d+-[0-9a-f]{8}-echo-one-echo-two-2-exit-3\.log$/);
 		assert.deepEqual(lines.slice(1), ["exit=3 lines=2", "1\tone", "2\ttwo"]);
 	});
 
@@ -274,6 +274,13 @@ describe("omo run", () => {
 		assert.equal(lines[1], "exit=0 lines=201");
 		assert.deepEqual(lines.slice(2, 9), ["lines matching FAIL (1):", "201\tFAIL: case 7", "last 3 lines:", "199\tline 199", "200\tline 200", "201\tFAIL: case 7", `[omo run: read more of the output with omo read ${logPath} START-END.]`]);
 		assert.ok(existsSync(logPath));
+	});
+
+	it("#given the same command run twice at once #when run #then each run saves to its own file", async () => {
+		const logDir = join(root, "logs");
+		const runs = await Promise.all([1, 2].map(() => runCommand(["echo same"], { cwd: root, logDir })));
+		const paths = runs.map(({ output }) => /saving the output to (\S+)/.exec(output)[1]);
+		assert.notEqual(paths[0], paths[1]);
 	});
 
 	it("#given several arguments #when run #then they run as a program without a shell", async () => {
