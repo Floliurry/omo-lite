@@ -186,6 +186,28 @@ describe("patch-check for an edit sent as JSON", () => {
 		assert.match(preToolUse(JSON.stringify({ edit: "a.txt", old: "z", new: "y" }), readText).permissionDecisionReason, /not found in a\.txt/);
 	});
 
+	it("#given old text that occurs twice and the line it starts on #when checked #then that occurrence is changed", () => {
+		const readText = files({ "/repo/a.txt": "a\nb\na\n" });
+		const decision = preToolUse(JSON.stringify({ edit: "a.txt", line: 3, old: "a", new: "y" }), readText);
+
+		assert.equal(decision.permissionDecision, "allow");
+		assert.equal(decision.updatedInput.command, patch("*** Update File: a.txt", "@@", " b", "-a", "+y"));
+	});
+
+	it("#given a line where the old text does not start, or starts twice #when checked #then the edit is refused with where it does start", () => {
+		const readText = files({ "/repo/a.txt": "a\nb\na\nx x\n" });
+
+		assert.match(preToolUse(JSON.stringify({ edit: "a.txt", line: 2, old: "a", new: "y" }), readText).permissionDecisionReason, /does not start on line 2 of a\.txt; it starts on lines 1, 3\. Read the lines again/);
+		assert.match(preToolUse(JSON.stringify({ edit: "a.txt", line: 4, old: "x", new: "y" }), readText).permissionDecisionReason, /occurs 2 times on line 4 of a\.txt\. Include more/);
+	});
+
+	it("#given several edits with lines #when checked #then each line counts in the text the earlier edits leave", () => {
+		const readText = files({ "/repo/a.txt": "a\nb\na\n" });
+		const decision = preToolUse(JSON.stringify([{ edit: "a.txt", line: 1, old: "a", new: "a\nadded" }, { edit: "a.txt", line: 4, old: "a", new: "z" }]), readText);
+
+		assert.equal(decision.updatedInput.command, patch("*** Update File: a.txt", "@@", " a", "+added", " b", "-a", "+z"));
+	});
+
 	it("#given old text that differs from the file only in full-width punctuation #when checked #then the refusal quotes the file's text and line", () => {
 		const readText = files({ "/repo/a.md": "# 标题\n接地仅单列数据，不纳入判定。线路按 20% 评价。\n" });
 		const reason = preToolUse(JSON.stringify({ edit: "a.md", old: "不纳入判定.线路", new: "不纳入判定.线路回路" }), readText).permissionDecisionReason;

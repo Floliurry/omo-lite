@@ -235,8 +235,11 @@ function countContext(kinds) {
 
 // An edit can reach apply_patch as JSON instead of a patch: {"edit": path, "old": text, "new": text}
 // replaces the one place `old` occurs, and {"write": path, "content": text} sets the whole file; an
-// array applies several in order. Before apply_patch runs, the hook turns them into the patch it
-// expects, so Codex still records the change and shows its diff.
+// array applies several in order. An edit may add "line", the line `old` starts on, counted from 1
+// in the file as the earlier edits of the array leave it; then only a match starting on that line
+// counts, which saves copying surrounding text to tell repeated text apart. Before apply_patch
+// runs, the hook turns the edits into the patch it expects, so Codex still records the change and
+// shows its diff.
 export function parseEdits(text) {
 	const trimmed = text.trim();
 	if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return null;
@@ -248,7 +251,7 @@ export function parseEdits(text) {
 	}
 	const edits = Array.isArray(value) ? value : [value];
 	const valid = edits.length > 0 && edits.every((edit) => isRecord(edit) && (
-		(typeof edit.edit === "string" && typeof edit.old === "string" && typeof edit.new === "string") ||
+		(typeof edit.edit === "string" && typeof edit.old === "string" && typeof edit.new === "string" && (edit.line === undefined || (Number.isInteger(edit.line) && edit.line >= 1))) ||
 		(typeof edit.write === "string" && typeof edit.content === "string")
 	));
 	return valid ? edits : null;
@@ -273,12 +276,18 @@ export function editsToPatch(edits, cwd, readText = readTextFile) {
 		if (file.text === null) return { error: `apply_patch was not run. ${path} does not exist; send {"write": path, "content": text} to create it.` };
 		const old = toLf(edit.old);
 		if (old === "") return { error: `apply_patch was not run. The old text for ${path} is empty; include the text the change replaces.` };
-		const places = occurrences(file.text, old);
 		const after = file.edited ? " after the earlier edits" : "";
-		if (places.length === 0) return { error: notFound(file.text, old, `${path}${after}`) };
+		const everywhere = occurrences(file.text, old);
+		if (everywhere.length === 0) return { error: notFound(file.text, old, `${path}${after}`) };
+		const lineOf = (index) => file.text.slice(0, index).split("\n").length;
+		const places = edit.line === undefined ? everywhere : everywhere.filter((index) => lineOf(index) === edit.line);
+		if (places.length === 0) {
+			const lines = [...new Set(everywhere.map(lineOf))];
+			return { error: `apply_patch was not run. The old text does not start on line ${edit.line} of ${path}${after}; it starts on line${lines.length > 1 ? "s" : ""} ${lines.join(", ")}. Read the lines again and send the line where it starts.` };
+		}
 		if (places.length > 1) {
-			const lines = places.map((index) => file.text.slice(0, index).split("\n").length);
-			return { error: `apply_patch was not run. The old text occurs ${places.length} times in ${path}${after} (lines ${lines.join(", ")}). Include more of the surrounding text so it occurs once.` };
+			const where = edit.line === undefined ? `in ${path}${after} (lines ${places.map(lineOf).join(", ")})` : `on line ${edit.line} of ${path}${after}`;
+			return { error: `apply_patch was not run. The old text occurs ${places.length} times ${where}. Include more of the surrounding text so it occurs once.` };
 		}
 		file.text = file.text.slice(0, places[0]) + toLf(edit.new) + file.text.slice(places[0] + old.length);
 		file.edited = true;
