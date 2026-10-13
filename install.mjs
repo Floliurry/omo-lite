@@ -53,12 +53,19 @@ export function install({ codexHome, binDir = join(homedir(), ".local", "bin"), 
 		act(`remove old version ${join(marketplaceRoot, plugin, other)}`, () => rmSync(join(marketplaceRoot, plugin, other), { recursive: true, force: true }));
 	}
 
+	// The marketplace list may register other plugins too: only our entry is replaced.
 	const marketplaceFile = join(marketplaceRoot, ".agents", "plugins", "marketplace.json");
-	act(`write marketplace entry ${marketplaceFile}`, () => {
-		mkdirSync(dirname(marketplaceFile), { recursive: true });
-		const entry = { name: marketplace, plugins: [{ name: plugin, source: { source: "local", path: `./${plugin}/${version}` } }] };
-		writeFileSync(marketplaceFile, `${JSON.stringify(entry, null, "\t")}\n`);
-	});
+	const listed = existsSync(marketplaceFile) ? readJson(marketplaceFile) : { name: marketplace, plugins: [] };
+	if (listed === null || !Array.isArray(listed.plugins)) {
+		log(`skip marketplace entry: ${marketplaceFile} is not a plugin list this installer can read; add ${plugin} with path ./${plugin}/${version} yourself`);
+	} else {
+		act(`write marketplace entry ${marketplaceFile}`, () => {
+			mkdirSync(dirname(marketplaceFile), { recursive: true });
+			const entry = { name: plugin, source: { source: "local", path: `./${plugin}/${version}` } };
+			const plugins = [...listed.plugins.filter((other) => other?.name !== plugin), entry];
+			writeFileSync(marketplaceFile, `${JSON.stringify({ ...listed, plugins }, null, "\t")}\n`);
+		});
+	}
 
 	const configPath = join(codexHome, "config.toml");
 	const before = existsSync(configPath) ? readFileSync(configPath, "utf8") : "";

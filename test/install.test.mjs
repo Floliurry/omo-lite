@@ -161,6 +161,20 @@ describe("install agent roles", () => {
 		assert.match(readFileSync(configPath(), "utf8"), new RegExp(`config_file = ${JSON.stringify(explorer).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
 	});
 
+	it("#given a marketplace list with another plugin #when installing #then that plugin stays listed beside ours", () => {
+		const listFile = join(codexHome, "plugins", "cache", "sisyphuslabs", ".agents", "plugins", "marketplace.json");
+		mkdirSync(join(listFile, ".."), { recursive: true });
+		const other = { name: "other", source: { source: "local", path: "./other/1.0.0" } };
+		writeFileSync(listFile, JSON.stringify({ name: "sisyphuslabs", plugins: [other] }));
+
+		runInstall();
+		runInstall();
+
+		const { plugins } = JSON.parse(readFileSync(listFile, "utf8"));
+		assert.deepEqual(plugins.map((entry) => entry.name), ["other", "omo"]);
+		assert.deepEqual(plugins[0], other);
+	});
+
 	it("#given a role the plugin no longer ships #when reinstalling #then its file and the registration the installer wrote are removed", () => {
 		runInstall();
 		const manifest = join(codexHome, "agents", ".omo-lite-agents.json");
