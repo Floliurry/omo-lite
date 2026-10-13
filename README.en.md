@@ -131,6 +131,12 @@ names the changed sections. Read them, take over what applies into `codex-base.m
 snapshot. Commit messages follow
 [the programming skill's commit policy](skills/programming/references/commit-policy.md#commit-messages).
 
+## Contributors
+
+- [Floliurry](https://github.com/Floliurry): maintainer. Sets the direction, watches real Codex sessions and decides what to change.
+- Claude (Anthropic's Claude Code): did most of the rewriting with the maintainer, including the base instructions, the lead rule, the hooks, the `omo` command and the installer; credited in commits as Co-Authored-By.
+- Upstream [oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent) was created by YeonGyu-Kim; most skills and roles started there.
+
 ## License
 
 Derived from oh-my-openagent and distributed under its Sustainable Use License 1.0; see

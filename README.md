@@ -91,6 +91,12 @@ node instructions/check-upstream.mjs       # 列出上游自我们的快照之�
 
 Codex 自带指令在上游有改动时，`check-upstream.mjs`（安装脚本也会运行它）会列出改过的章节。读完这些章节，把适用的部分吸收进 `codex-base.md`，再替换快照。提交信息遵循[编程技能里的提交规范](skills/programming/references/commit-policy.md#commit-messages)。
 
+## 贡献者
+
+- [Floliurry](https://github.com/Floliurry)：维护者。决定方向，观察 Codex 的实际会话，提出要改什么。
+- Claude（Anthropic 的 Claude Code）：和维护者一起完成了大部分改写，包括基础指令、主代理规则、钩子、`omo` 命令和安装脚本；提交里以 Co-Authored-By 署名。
+- 上游 [oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent) 由 YeonGyu-Kim 创建，大部分技能和角色最初来自那里。
+
 ## 许可
 
 本仓库派生自 oh-my-openagent，按其 Sustainable Use License 1.0 分发，见 [LICENSE.md](LICENSE.md)。引入的技能保留各自的许可：`skills/frontend`（Apache 2.0）、`skills/ast-grep`（见其 `LICENSE`），以及 `skills/ultimate-browsing` 和 `skills/ulw-research`（见各自的 `ATTRIBUTION.md`）。
