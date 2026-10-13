@@ -17,8 +17,9 @@
 // apply_patch may also receive an edit as JSON (see parseEdits). Before it runs, the hook replaces
 // the JSON with the equivalent patch, so the change still goes through Codex's own patch handling
 // and shows as a diff. Without the hook, apply_patch rejects the JSON as an invalid patch.
-import { readFileSync } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
+import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { isAbsolute, join, resolve } from "node:path";
 import { stdin as processStdin, stdout as processStdout } from "node:process";
 import { pathToFileURL } from "node:url";
 
@@ -166,6 +167,55 @@ export function describeChanges(patchText, cwd, readText = readTextFile) {
 		parts.push(ranges.length === 0 ? label : `${label} ${ranges.join(", ")}`);
 	}
 	return parts;
+}
+
+// The same receipt, worked out before the patch runs. The changed lines are placed where
+// apply_patch will put them: each chunk at its first match in the current file, shifted by the
+// lines earlier chunks add or remove. Searching the new file instead finds the first copy of the
+// new text, which may be a line that was already there.
+export function plannedChanges(patchText, cwd, readText = readTextFile) {
+	const parts = [];
+	for (const hunk of parsePatch(patchText) ?? []) {
+		if (hunk.kind === "add") parts.push(`${hunk.path} (new, ${hunk.addLines.length} lines)`);
+		if (hunk.kind === "delete") parts.push(`${hunk.path} (deleted)`);
+		if (hunk.kind !== "update") continue;
+		const label = hunk.movePath === null ? hunk.path : `${hunk.path} -> ${hunk.movePath}`;
+		const lines = fileLines(readText, resolvePath(cwd, hunk.path));
+		const replacements = lines === null ? [] : placeChunks(lines, hunk.chunks);
+		let shift = 0;
+		const ranges = replacements.map(({ start, oldCount, newCount, chunk }) => {
+			const range = changedRange(chunk, start + shift);
+			shift += newCount - oldCount;
+			return range;
+		});
+		parts.push(ranges.length === 0 ? label : `${label} ${ranges.join(", ")}`);
+	}
+	return parts;
+}
+
+// Where apply_patch puts each chunk, following file_update.rs: a chunk with no old lines goes at
+// the end of the file, and a chunk that only matches without a trailing empty line also drops one
+// from its new lines.
+function placeChunks(lines, chunks) {
+	const replacements = [];
+	let lineIndex = 0;
+	for (const chunk of chunks) {
+		if (chunk.context !== null) {
+			const anchors = seekAll(lines, [chunk.context], lineIndex, false);
+			if (anchors.length === 0) break;
+			lineIndex = anchors[0] + 1;
+		}
+		if (chunk.oldLines.length === 0) {
+			replacements.push({ start: lines.length, oldCount: 0, newCount: chunk.newLines.length, chunk });
+			continue;
+		}
+		const found = seekChunk(lines, chunk.oldLines, lineIndex, chunk.eof);
+		if (found === null) break;
+		const trimmed = found.pattern.length < chunk.oldLines.length && chunk.newLines.at(-1) === "";
+		replacements.push({ start: found.matches[0], oldCount: found.pattern.length, newCount: chunk.newLines.length - (trimmed ? 1 : 0), chunk });
+		lineIndex = found.matches[0] + found.pattern.length;
+	}
+	return replacements.sort((left, right) => left.start - right.start);
 }
 
 // The changed lines in the new file: the chunk's new lines without its leading and trailing context.
@@ -429,35 +479,72 @@ function describeEdits(edits, cwd, readText) {
 	return parts;
 }
 
-export function runHook(input, readText = readTextFile) {
+// Pre and Post run as separate processes. The receipt worked out before the patch is kept in a
+// file named by the call's tool_use_id, which both events carry, and taken back after it. Without
+// one, as when the patch failed and nothing ran after it, the receipt is worked out from the new
+// file, which can name the wrong copy of repeated lines.
+export function runHook(input, readText = readTextFile, receipts = receiptFiles()) {
 	const target = patchTarget(input);
 	if (target === null) return "";
 	const { patch, cwd } = target;
 	const edits = input.tool_name === "Bash" ? null : parseEdits(patch);
+	const callId = input.tool_name !== "Bash" && typeof input.tool_use_id === "string" && input.tool_use_id !== "" ? input.tool_use_id : null;
 
 	if (input.hook_event_name === "PreToolUse" && edits !== null) {
 		const result = editsToPatch(edits, cwd, readText);
 		if (result.error !== undefined) return output({ hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: denyReason(result.error) });
+		if (callId !== null) receipts.save(callId, plannedChanges(result.patch, cwd, readText));
 		return output({ hookEventName: "PreToolUse", permissionDecision: "allow", updatedInput: { ...input.tool_input, command: result.patch } });
-	}
-	if (input.hook_event_name === "PostToolUse" && edits !== null) {
-		const changes = describeEdits(edits, cwd, readText);
-		if (changes.length === 0) return "";
-		return output({ hookEventName: "PostToolUse", additionalContext: `Patched: ${changes.join("; ")}. To check the edit, print those lines rather than the whole file.` });
 	}
 	if (input.hook_event_name === "PreToolUse") {
 		const ambiguous = findAmbiguousHunks(patch, cwd, readText);
-		if (ambiguous.length === 0) return "";
+		if (ambiguous.length === 0) {
+			if (callId !== null) receipts.save(callId, plannedChanges(patch, cwd, readText));
+			return "";
+		}
 		const details = ambiguous.map(({ path, hunk, lines }) => `${path}: hunk ${hunk} matches ${lines.length} places (lines ${lines.join(", ")})`);
 		const reason = `apply_patch was not run. ${details.join("; ")}. It would change only the first match. Add surrounding lines, or an "@@ <line above the change>" anchor that occurs only once, so each hunk matches one place, then send the patch again.`;
 		return output({ hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: denyReason(reason) });
 	}
 	if (input.hook_event_name === "PostToolUse") {
-		const changes = describeChanges(patch, cwd, readText);
+		const saved = callId === null ? null : receipts.take(callId);
+		const changes = saved ?? (edits !== null ? describeEdits(edits, cwd, readText) : describeChanges(patch, cwd, readText));
 		if (changes.length === 0) return "";
 		return output({ hookEventName: "PostToolUse", additionalContext: `Patched: ${changes.join("; ")}. To check the edit, print those lines rather than the whole file.` });
 	}
 	return "";
+}
+
+// Receipts waiting for their PostToolUse, one small JSON file per call in the temp directory.
+// Those left by patches that failed, and so got no PostToolUse, are removed after a day.
+const RECEIPT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+function receiptFiles(dir = join(tmpdir(), "omo-patch-check")) {
+	const pathFor = (callId) => join(dir, `${callId.replace(/[^A-Za-z0-9._-]/g, "_")}.json`);
+	return {
+		save(callId, parts) {
+			try {
+				mkdirSync(dir, { recursive: true });
+				const now = Date.now();
+				for (const name of readdirSync(dir)) {
+					const path = join(dir, name);
+					if (now - statSync(path).mtimeMs > RECEIPT_MAX_AGE_MS) rmSync(path, { force: true });
+				}
+				writeFileSync(pathFor(callId), JSON.stringify(parts));
+			} catch {
+				// Without a saved receipt, PostToolUse works it out from the new file.
+			}
+		},
+		take(callId) {
+			try {
+				const parts = JSON.parse(readFileSync(pathFor(callId), "utf8"));
+				rmSync(pathFor(callId), { force: true });
+				return Array.isArray(parts) ? parts : null;
+			} catch {
+				return null;
+			}
+		},
+	};
 }
 
 // The patch text and the directory its paths are relative to, or null when the call is no patch.

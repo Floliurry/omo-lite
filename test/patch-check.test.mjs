@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { describeChanges, findAmbiguousHunks, parsePatch, runHook } from "../hooks/patch-check.mjs";
+import { describeChanges, findAmbiguousHunks, parsePatch, plannedChanges, runHook } from "../hooks/patch-check.mjs";
 import { describe, it } from "./expect.mjs";
 
 const HOOK_PATH = fileURLToPath(new URL("../hooks/patch-check.mjs", import.meta.url));
@@ -133,6 +133,36 @@ describe("patch-check after apply_patch", () => {
 	});
 });
 
+describe("patch-check receipt worked out before the patch", () => {
+	// Receipts kept in memory, standing in for the files that carry them from Pre to Post.
+	function memoryReceipts() {
+		const saved = new Map();
+		return { save: (id, parts) => saved.set(id, parts), take: (id) => saved.get(id) ?? null };
+	}
+
+	function preThenPost(command, before, after) {
+		const receipts = memoryReceipts();
+		const input = { tool_name: "apply_patch", tool_use_id: "call-1", cwd: CWD };
+		const pre = runHook({ ...input, hook_event_name: "PreToolUse", tool_input: { command } }, files({ "/repo/a.txt": before }), receipts);
+		const sent = pre === "" ? command : (JSON.parse(pre).hookSpecificOutput.updatedInput?.command ?? command);
+		const post = runHook({ ...input, hook_event_name: "PostToolUse", tool_input: { command: sent } }, files({ "/repo/a.txt": after }), receipts);
+		return JSON.parse(post).hookSpecificOutput.additionalContext;
+	}
+
+	it("#given an edit whose new text already occurs above it #when it runs as JSON or as a patch #then the receipt names the edited line", () => {
+		const json = JSON.stringify({ edit: "a.txt", old: "old", new: "new" });
+		assert.match(preThenPost(json, "new\nold\n", "new\nnew\n"), /^Patched: a\.txt line 2\./);
+		assert.match(preThenPost(patch("*** Update File: a.txt", "@@", "-old", "+new"), "new\nold\n", "new\nnew\n"), /^Patched: a\.txt line 2\./);
+	});
+
+	it("#given chunks that add lines above later ones and a chunk with no old lines #when planned #then each range is in the new file", () => {
+		const readText = files({ "/repo/a.txt": "a\nb\nc\nd\n" });
+		const command = patch("*** Update File: a.txt", "@@", " a", "+a1", "+a2", " b", "@@", " c", "-d", "+D", "@@", "+end");
+
+		assert.deepEqual(plannedChanges(command, CWD, readText), ["a.txt lines 2-3, line 6, line 7"]);
+	});
+});
+
 describe("patch-check for an edit sent as JSON", () => {
 	it("#given an edit whose old text occurs once #when checked #then apply_patch gets a patch for that place", () => {
 		const readText = files({ "/repo/a.txt": "a\n}\nb\n}\nc\n" });
@@ -222,6 +252,23 @@ describe("patch-check CLI", () => {
 
 			assert.equal(result.status, 0, result.stderr);
 			assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("#given a real patch run in two processes #when PostToolUse follows PreToolUse for the same call #then the receipt saved before names the edited line", () => {
+		const dir = mkdtempSync(join(tmpdir(), "omo-patch-check-"));
+		try {
+			writeFileSync(join(dir, "a.txt"), "new\nold\n");
+			const call = { tool_name: "apply_patch", tool_use_id: `call-${process.pid}-${Date.now()}`, tool_input: { command: patch("*** Update File: a.txt", "@@", "-old", "+new") }, cwd: dir };
+			const hook = (event) => spawnSync(process.execPath, [HOOK_PATH], { input: JSON.stringify({ ...call, hook_event_name: event }), encoding: "utf8" });
+
+			assert.equal(hook("PreToolUse").stdout, "");
+			writeFileSync(join(dir, "a.txt"), "new\nnew\n");
+			const post = hook("PostToolUse");
+
+			assert.match(JSON.parse(post.stdout).hookSpecificOutput.additionalContext, /^Patched: a\.txt line 2\./);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
