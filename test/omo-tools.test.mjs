@@ -61,12 +61,28 @@ describe("omo read", () => {
 		const lines = output.split("\n");
 		assert.equal(lines[0], "big.txt (lines 1-10 of 100)");
 		assert.equal(lines[10], "10\tline 10");
-		assert.match(lines[11], /^\[omo read: stopped at line 10 of 100 .* Next page: omo read big\.txt 11-20\. .*Do not conclude from this page alone/);
+		assert.match(lines[11], /^\[omo read: stopped at line 10 of 100 .* Next page: omo read big\.txt 11\. .*Do not conclude from this page alone/);
 	});
 
 	it("#given a bounded range larger than a page #when read #then the next page stays inside the range", () => {
 		write("big.txt", `${numbered(100)}\n`);
 		assert.match(read(["big.txt", "1-15"], { pageBytes: 100 }).output, /Next page: omo read big\.txt 11-15\./);
+	});
+
+	it("#given pages of different widths #when each next-page command is followed #then the reads reach the last line", () => {
+		write("big.txt", `${numbered(1200)}\n`);
+		for (const range of [undefined, "1-1150"]) {
+			let args = range === undefined ? ["big.txt"] : ["big.txt", range];
+			let lastLine = null;
+			for (let reads = 0; reads < 50; reads += 1) {
+				const { output } = read(args, { pageBytes: 3000 });
+				lastLine = output.split("\n").filter((line) => /^\d+\t/.test(line)).at(-1).split("\t")[0];
+				const next = /Next page: omo read (\S+) (\S+)\./.exec(output);
+				if (next === null) break;
+				args = [next[1], next[2]];
+			}
+			assert.equal(lastLine, range === undefined ? "1200" : "1150");
+		}
 	});
 
 	it("#given CRLF line ends and a very long line #when read #then the carriage returns are dropped and the long line is cut with a note", () => {
@@ -122,7 +138,7 @@ describe("omo read with several files", () => {
 
 		const { output } = read(["big.txt", "small.txt"], { pageBytes: 100 });
 
-		assert.match(output, /Next page: omo read big\.txt 11-20\./);
+		assert.match(output, /Next page: omo read big\.txt 11\./);
 		assert.match(output, /Next: omo read small\.txt\]$/);
 	});
 

@@ -160,9 +160,11 @@ function readOne({ file, rangeText }, { cwd, threadId, readsRoot, again }, budge
 	const cut = scan.lines.filter((line) => line.cut).map((line) => line.number);
 	if (cut.length > 0) out.push(`[omo read: line${cut.length > 1 ? "s" : ""} ${cut.join(", ")} ${cut.length > 1 ? "are" : "is"} longer than ${MAX_LINE_CHARS.toLocaleString("en-US")} characters and cut where marked.]`);
 	if (last < wantedLast) {
-		const nextEnd = Math.min(wantedLast, last + scan.lines.length);
+		// The next command keeps the requested end, so each page is again cut only by its size and
+		// following the commands reaches the end of the range.
+		const nextRange = range.end === Infinity ? `${last + 1}` : `${last + 1}-${range.end}`;
 		out.push(
-			`[omo read: stopped at line ${last} of ${scan.total} to keep this output under about ${Math.round(budget / 4).toLocaleString("en-US")} tokens. Next page: omo read ${quoteArg(file)} ${last + 1}-${nextEnd}. To find a section first: omo grep PATTERN ${quoteArg(file)}. Do not conclude from this page alone if the answer may be further in the file.]`,
+			`[omo read: stopped at line ${last} of ${scan.total} to keep this output under about ${Math.round(budget / 4).toLocaleString("en-US")} tokens. Next page: omo read ${quoteArg(file)} ${nextRange}. To find a section first: omo grep PATTERN ${quoteArg(file)}. Do not conclude from this page alone if the answer may be further in the file.]`,
 		);
 	}
 	if (record !== null) remember(record, stat);
