@@ -77,13 +77,19 @@ export function addMemberWorktree(cwd, team, member, { baseBranch } = {}) {
 	const base = baseBranch || team.worktree?.baseBranch || "dev";
 	const branch = deriveMemberBranch(team, member);
 	const path = memberWorktreePath(team, member);
-	// Idempotent: skip if a worktree is already checked out on this member's branch (matched on the
-	// branch ref, which is OS-agnostic) or already lives at this path (matched on realpath, so a
-	// Windows 8.3 git path vs an 8.3-or-long script path still compares equal). Plain string/resolve
-	// comparison missed the 8.3-vs-canonical case and re-`git worktree add`-ed into a fatal error.
-	if (listWorktrees(cwd).some((w) => w.branch === `refs/heads/${branch}` || samePath(resolve(cwd, w.path), resolve(cwd, path)))) {
-		return { path, branch, base, created: false };
-	}
+	// Idempotent only when the member's directory already holds the member's branch. The branch is
+	// matched on its ref, which is OS-agnostic, and the directory on realpath, so a Windows 8.3 git
+	// path and a long script path still compare equal. When only one of the two matches, the branch
+	// is checked out elsewhere or the directory holds another branch; recording the expected
+	// directory then would send the member to the wrong cwd, so the leader is told instead.
+	const branchRef = `refs/heads/${branch}`;
+	const atPath = (w) => samePath(resolve(cwd, w.path), resolve(cwd, path));
+	const worktrees = listWorktrees(cwd);
+	if (worktrees.some((w) => w.branch === branchRef && atPath(w))) return { path, branch, base, created: false };
+	const elsewhere = worktrees.find((w) => w.branch === branchRef);
+	if (elsewhere) throw new Error(`branch ${branch} is already checked out at ${elsewhere.path}, not at the member's worktree ${path}; remove that worktree (git worktree remove "${elsewhere.path}") and run worktree-add again`);
+	const occupied = worktrees.find(atPath);
+	if (occupied) throw new Error(`${path} is already a worktree on ${occupied.branch?.replace(/^refs\/heads\//, "") ?? "a detached HEAD"}, not on ${branch}; remove it and run worktree-add again`);
 	const add = branchExists(cwd, branch)
 		? ["worktree", "add", path, branch]
 		: ["worktree", "add", "-b", branch, path, base];

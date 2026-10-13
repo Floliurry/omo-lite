@@ -137,6 +137,24 @@ test("#given an existing member worktree #when worktree-add runs again #then it 
 	}
 });
 
+test("#given the member's branch checked out in another directory #when worktree-add runs #then it refuses, names that directory and records nothing", () => {
+	const tempRoot = createTeamRoot("omo-codex-teammode-wt-elsewhere-");
+	try {
+		initGitRepo(tempRoot);
+		bootstrapTeam(tempRoot, "wt-else", { worktree: true });
+		const other = join(tempRoot, "elsewhere");
+		git(tempRoot, "worktree", "add", "-b", "team/wt-else/A", other, "main");
+
+		const result = runTeamRaw(tempRoot, "worktree-add", "--team", "wt-else", "--id", "A");
+
+		assert.notEqual(result.status, 0);
+		assert.match(`${result.stdout}${result.stderr}`, /already checked out at .*elsewhere/);
+		assert.equal(readTeamJson(tempRoot, "wt-else").members.find((member) => member.id === "A").worktree?.path ?? null, null);
+	} finally {
+		cleanupTeamRoot(tempRoot);
+	}
+});
+
 test("#given a member worktree #when worktree-remove A #then git drops it and team.json clears the path", () => {
 	const tempRoot = createTeamRoot("omo-codex-teammode-wt-remove-");
 	try {
