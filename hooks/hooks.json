@@ -1,0 +1,139 @@
+{
+	"hooks": {
+		"SessionStart": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/hooks/resident-rule.mjs\"",
+						"timeout": 10,
+						"statusMessage": "(OmO) Loading Resident Rule",
+						"additionalContextLimit": 0
+					}
+				]
+			}
+		],
+		"PostCompact": [
+			{
+				"matcher": "manual|auto",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/hooks/resident-rule.mjs\"",
+						"timeout": 5,
+						"statusMessage": "(OmO) Marking Resident Rule Check"
+					},
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/hooks/read-reset.mjs\"",
+						"timeout": 5,
+						"statusMessage": "(OmO) Resetting Read Records"
+					}
+				]
+			}
+		],
+		"UserPromptSubmit": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/hooks/resident-rule.mjs\"",
+						"timeout": 10,
+						"statusMessage": "(OmO) Checking Resident Rule",
+						"additionalContextLimit": 0
+					},
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/hooks/ultrawork-trigger.mjs\"",
+						"timeout": 5,
+						"statusMessage": "(OmO) Checking Ultrawork Trigger"
+					}
+				]
+			}
+		],
+		"SubagentStart": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/hooks/subagent-context.mjs\"",
+						"timeout": 5,
+						"statusMessage": "(OmO) Preparing Task Context"
+					}
+				]
+			}
+		],
+		"PostToolUse": [
+			{
+				"matcher": "^(create_thread|codex_app\\.create_thread)$",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/hooks/thread-title.mjs\"",
+						"timeout": 10,
+						"statusMessage": "(OmO) Checking Thread Title"
+					}
+				]
+			},
+			{
+				"matcher": "^apply_patch$",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/hooks/patch-check.mjs\"",
+						"timeout": 5,
+						"statusMessage": "(OmO) Locating Patched Lines"
+					}
+				]
+			}
+		],
+		"PreToolUse": [
+			{
+				"matcher": "^apply_patch$",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/hooks/patch-check.mjs\"",
+						"timeout": 5,
+						"statusMessage": "(OmO) Checking Patch Matches"
+					}
+				]
+			},
+			{
+				"matcher": "^Bash$",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/hooks/patch-check.mjs\"",
+						"timeout": 5,
+						"statusMessage": "(OmO) Checking Patch Matches"
+					}
+				]
+			}
+		],
+		"Stop": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/hooks/ulw-execute-continuation.mjs\"",
+						"timeout": 10,
+						"statusMessage": "(OmO) Checking Ulw-Execute Continuation"
+					}
+				]
+			}
+		],
+		"SubagentStop": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"${PLUGIN_ROOT}/hooks/ulw-execute-continuation.mjs\"",
+						"timeout": 10,
+						"statusMessage": "(OmO) Checking Ulw-Execute Continuation"
+					}
+				]
+			}
+		]
+	}
+}

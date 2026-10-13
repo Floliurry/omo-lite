@@ -1,0 +1,4 @@
+interface:
+  display_name: "(OmO) claude-code"
+  short_description: "Run observable Claude reviews and sessions"
+  default_prompt: "Use $claude-code for an authorized second opinion in a persistent session tied to this workspace."

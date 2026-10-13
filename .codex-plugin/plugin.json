@@ -1,0 +1,19 @@
+{
+	"name": "omo",
+	"version": "0.1.0",
+	"description": "Slim OMO for Codex: resident dispatch rules, agent roles, skills and a few hooks. The files here are the sources.",
+	"license": "SUL-1.0",
+	"skills": "./skills/",
+	"mcpServers": "./.mcp.json",
+	"interface": {
+		"displayName": "OMO",
+		"shortDescription": "Dispatch rules, agent roles and planning/execution skills",
+		"category": "Developer Tools",
+		"capabilities": [
+			"Hooks",
+			"Workflow",
+			"Context Injection"
+		]
+	},
+	"hooks": "./hooks/hooks.json"
+}

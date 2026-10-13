@@ -1,0 +1,6 @@
+interface:
+  display_name: "(OmO) ulw-plan"
+  short_description: "Strict planning with approval and optional dual review"
+  search_terms:
+    - "ulw-plan"
+  default_prompt: "Use $ulw-plan for strict planning: explore, present an approval brief, then write a plan, with Metis gap analysis when it has HEAVY tasks or unresolved dependencies. Ask before adding dual review; do not implement."
