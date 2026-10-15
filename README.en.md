@@ -37,7 +37,7 @@ command reads, searches and runs commands with bounded output that says how to g
 - **The lead rule** (`rules/lead.md`) is injected into the main agent by a hook. It covers finding
   the direction before the work, what to delegate and what to keep, and when to use a workflow.
 - **Agent roles** (`agents/*.toml`) set the model, reasoning effort and instructions for a read-only
-  lookup agent (librarian, low effort) and researcher (explorer, high effort), workers at three sizes,
+  lookup agent (librarian, low effort) and researcher (explorer, xhigh effort), workers at three sizes,
   reviewers and planners. The model names in them are the ones we use; change them to the models
   your account offers.
 - **Skills** (`skills/`) hold everything that applies only to some tasks: programming and commit
