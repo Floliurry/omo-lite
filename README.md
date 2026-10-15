@@ -27,6 +27,7 @@
   | `resident-rule.mjs` | 会话开始、提交提示、上下文压缩 | 注入主代理规则，并填入当前会话的模型名；压缩之后只注入一行指向规则文件的提示 |
   | `patch-check.mjs` | `apply_patch` 前后 | 如果补丁的某段能匹配多处就拒绝，因为 `apply_patch` 会默默改掉第一处；接受 JSON 形式的编辑（`{"edit", "old", "new"}`，可选 `"line"` 指明旧文本从哪一行开始）并转成补丁；成功后列出改动的行 |
   | `read-reset.mjs` | 上下文压缩 | 清掉本线程“读过哪些范围”的记录。压缩后再读同一段，`omo read` 会照常输出内容，而不是只给一行“没有变化”的提示；它自己不会往上下文里放回任何内容 |
+  | `explorer-handoff.mjs` | 派出 explorer 之后 | 提醒主代理：explorer 范围内的判断归它；不同意就把理由发给它，不要自己重读来源再选一遍 |
   | `subagent-context.mjs` | 子代理启动 | 给子代理一个辅助脚本，用来加载任务里 `Context:` 下列出的文件 |
   | `ultrawork-trigger.mjs` | 提交提示 | 把 `/ulw …` 或 `ulw: …` 这类请求引到 ultrawork 技能 |
   | `thread-title.mjs` | 新建线程 | 提醒团队模式的负责人给新线程起标题 |

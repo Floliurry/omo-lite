@@ -50,6 +50,7 @@ command reads, searches and runs commands with bounded output that says how to g
   | `resident-rule.mjs` | Session start, prompt, compaction | Injects the lead rule with the session's model name; after a compaction, a pointer to the rule file |
   | `patch-check.mjs` | Before and after `apply_patch` | Refuses a patch whose hunk matches several places, which `apply_patch` would apply to the first; accepts a JSON edit (`{"edit", "old", "new"}`, with an optional `"line"` where the old text starts) and turns it into a patch; names the changed lines afterwards |
   | `read-reset.mjs` | Compaction | Clears the thread's record of the ranges `omo read` has printed, so a range read again after the compaction prints its content instead of the "unchanged" note; it puts nothing back into the context itself |
+  | `explorer-handoff.mjs` | After an explorer is spawned | Reminds the lead that the judgment inside the explorer's scope is the explorer's; disagreement goes back to it as a reason, not as a reread of its sources |
   | `subagent-context.mjs` | Sub-agent start | Gives a sub-agent the helper that loads the files its assignment lists under `Context:` |
   | `ultrawork-trigger.mjs` | Prompt | Points a `/ulw …` or `ulw: …` request at the ultrawork skill |
   | `thread-title.mjs` | Thread creation | Reminds a team-mode leader to title new threads |
