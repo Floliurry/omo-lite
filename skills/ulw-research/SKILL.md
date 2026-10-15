@@ -62,7 +62,7 @@ Choose one research owner under the selected workflow. Use a cooperating team wh
 
 ## Workers
 
-Research workers (explorer, librarian, browsing) have standing rules: — read-only, no recursion, exhaustive depth within their limits, role protocols, and what to report — live in [`references/worker-protocol.md`](references/worker-protocol.md). The worker reads it; do not re-paste it or this workflow into each assignment.
+Research workers (explorer, browsing) have standing rules: — read-only, no recursion, exhaustive depth within their limits, role protocols, and what to report — live in [`references/worker-protocol.md`](references/worker-protocol.md). The worker reads it; do not re-paste it or this workflow into each assignment.
 
 Every research spawn message contains:
 
@@ -90,12 +90,12 @@ Launch independent, ready evidence needs in parallel when that saves time or exp
 
 **Judge what a source actually shows.** A source supports only the scope, time, and version it covers. A search snippet is a lead, not inspected-page evidence. A `snapshot` is historical and is cited with its `snapshot_timestamp`, not as the current live page. `proxy` content stays `untrusted` until an independent route confirms it.
 
-Example spawn (codebase axis; librarian, browsing, and repo-dive follow the same contract with their own protocol):
+Example spawn (codebase axis; web, browsing and repo-dive axes follow the same contract with their own protocol):
 
 ```
 spawn_agent(agent_type="explorer", task_name="axis_<angle>", fork_turns="none", message="TASK: act as a codebase researcher for AXIS: <specific angle>. Read-only; do not spawn subagents.
 SCOPE: find evidence relevant to <angle>: <what complete looks like>. <task-specific limits, if any>
-PROTOCOL: follow <full path to this skill>/references/worker-protocol.md — ground rules, the Codebase (explore) protocol, and the reporting guidance.")
+PROTOCOL: follow <full path to this skill>/references/worker-protocol.md — ground rules, the Codebase protocol, and the reporting guidance.")
 ```
 
 ## Phase 2 — Expand until convergence
@@ -107,9 +107,9 @@ The expansion loop is what makes the mode research rather than search. Take retu
 3. Triage each new lead against the core question and the current claims. Investigate decision-relevant leads directly or assign bounded, independent expansion work; close duplicates, dead ends, and out-of-scope leads with a reason.
 
 ```
-spawn_agent(agent_type="librarian", task_name="wave<N>_<lead>", fork_turns="none", message="TASK: expansion wave <N> — investigate: <lead>. Read-only; do not spawn subagents.
+spawn_agent(agent_type="explorer", task_name="wave<N>_<lead>", fork_turns="none", message="TASK: expansion wave <N> — investigate: <lead>. Read-only; do not spawn subagents.
 PARENT: <which return surfaced it>. SCOPE: <what settling this lead requires, within the authorized scope>.
-PROTOCOL: follow <full path to this skill>/references/worker-protocol.md — the <Web (librarian) or Codebase (explore)> protocol and the reporting guidance.")
+PROTOCOL: follow <full path to this skill>/references/worker-protocol.md — the <Web, Repo deep-dive or Codebase> protocol and the reporting guidance.")
 ```
 
 **Relay the user's steering to affected workers.** When the user changes scope, cadence, target sources, language, or format mid-run, record the exact wording and send it immediately to every live worker and member whose assignment it changes, carrying only that delta. Steering only you saw silently splits an assignment from the user's actual ask; steering sent to unaffected workers only interrupts them.

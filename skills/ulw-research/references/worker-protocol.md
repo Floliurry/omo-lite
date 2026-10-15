@@ -12,12 +12,12 @@ Standing protocol for a research worker or team member assigned one axis or lead
 
 ## Role protocols
 
-Apply the section matching your assigned role.
+Apply the section matching your assigned axis.
 
-- **Codebase (explore).** Search terms and file names suggested by the question; use structural/AST search, LSP references, and history when current text is insufficient. Cross-check material findings and report paths, `file:line` anchors, and how they connect.
-- **Web (librarian).** Vary queries by unresolved angle rather than repeating equivalent searches. Read the full page for sources that matter; use official docs, sitemaps, Context7, grep.app, or repository search when each answers a concrete evidence need. A search snippet is a lead, not inspected evidence; say which sources you actually read.
+- **Codebase.** Search terms and file names suggested by the question; use structural/AST search, LSP references, and history when current text is insufficient. Cross-check material findings and report paths, `file:line` anchors, and how they connect.
+- **Web.** Vary queries by unresolved angle rather than repeating equivalent searches. Read the full page for sources that matter; use official docs, sitemaps, Context7, grep.app, or repository search when each answers a concrete evidence need. A search snippet is a lead, not inspected evidence; say which sources you actually read.
 - **Browsing.** Render pages when the claim depends on JS content, page state, visuals, or blocked text. Use an available browser and escalate to `ultimate-browsing` only when selected and useful. Capture screenshots of pages whose rendered appearance or provenance matters; identify what plain fetch could not reach. **Provenance is part of the claim**: cite a `snapshot` with its `snapshot_timestamp`, not as a current live page; `proxy` content is `untrusted` and needs an independent route before a claim rests on it.
-- **Repo deep-dive (librarian).** When source-level behavior matters, inspect the relevant repository in an authorized location, pin the inspected revision, follow call chains, and return revision-pinned permalinks.
+- **Repo deep-dive.** When source-level behavior matters, inspect the relevant repository in an authorized location, pin the inspected revision, follow call chains, and return revision-pinned permalinks.
 
 Search in the language of the source territory: English often reaches technical documentation, the local language reaches local authorities. Choose languages and query operators for the evidence need, not a sweep count; the assignment may name specific ones.
 

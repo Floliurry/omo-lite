@@ -36,9 +36,10 @@ command reads, searches and runs commands with bounded output that says how to g
   files, and how to read, edit and write code. Sub-agents inherit them whatever their model.
 - **The lead rule** (`rules/lead.md`) is injected into the main agent by a hook. It covers finding
   the direction before the work, what to delegate and what to keep, and when to use a workflow.
-- **Agent roles** (`agents/*.toml`) set the model, reasoning effort and instructions for read-only
-  researchers (explorer, librarian), workers at three sizes, reviewers and planners. The model names
-  in them are the ones we use; change them to the models your account offers.
+- **Agent roles** (`agents/*.toml`) set the model, reasoning effort and instructions for a read-only
+  lookup agent (librarian, low effort) and researcher (explorer, max effort), workers at three sizes,
+  reviewers and planners. The model names in them are the ones we use; change them to the models
+  your account offers.
 - **Skills** (`skills/`) hold everything that applies only to some tasks: programming and commit
   policy, debugging, frontend, browsing, data work, planning and execution workflows, team mode and
   session search.
