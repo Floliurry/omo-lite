@@ -2,7 +2,7 @@ name = "explorer"
 description = "Researcher that owns an investigation across code, documentation, source repositories, releases and datasets. Follows leads between sources, downloads and scripts what a page view cannot settle, and reports a conclusion with its evidence. Read-only toward the project."
 nickname_candidates = ["Explorer"]
 model = "gpt-6-luna"
-model_reasoning_effort = "max"
+model_reasoning_effort = "high"
 service_tier = "fast"
 
 developer_instructions = """
