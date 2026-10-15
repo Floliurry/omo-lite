@@ -7,6 +7,45 @@ Codex port. It gives Codex rewritten base instructions, a rule for the lead agen
 roles, skills, a few hooks and an `omo` command for reading files. Every file here is the source
 Codex loads: there is no build step and no generated copy.
 
+## Quick start
+
+Needs Node.js on PATH. Only Linux and WSL are checked so far.
+
+```sh
+git clone https://github.com/Floliurry/omo-lite.git
+cd omo-lite
+node install.mjs --dry-run   # lists every change without making any
+node install.mjs             # installs once the list looks right
+```
+
+Then:
+
+1. Open `codex` in a terminal and review and trust the hooks the installer lists under `/hooks`. An
+   untrusted hook is skipped without notice, and the IDE never asks.
+2. Restart Codex, for example by reloading the VS Code window. A running session keeps the
+   instructions it started with.
+3. The model names in `agents/*.toml` are the ones we use; change them to the models your account
+   offers and reinstall.
+
+What the installer changes and how to undo it is under [Installing](#installing).
+
+## Repository layout
+
+The Chinese README in each directory describes what is in it.
+
+| Path | What it is |
+| --- | --- |
+| [`instructions/`](instructions/README.md) | Base instructions that replace Codex's built-in ones; multi-agent texts for the lead and sub-agents; the upstream snapshot and the script that compares it |
+| [`rules/`](rules/README.md) | The lead rule, injected into the main agent by a hook |
+| [`agents/`](agents/README.md) | Agent roles: lookup, research, workers, reviewers and planners |
+| [`skills/`](skills/README.md) | Skills that apply only to some tasks |
+| [`hooks/`](hooks/README.md) | `hooks.json` and the hook scripts |
+| [`tools/`](tools/README.md) | The `omo` command: reading, searching and running with bounded output |
+| [`test/`](test/README.md) | Tests; nothing under it is installed |
+| `.codex-plugin/plugin.json` | Plugin manifest, pointing at the skills, hooks and MCP config |
+| `.mcp.json` | Remote search servers (grep.app, Context7) |
+| `install.mjs` | The installer |
+
 ## Why this exists
 
 We ran oh-my-openagent's Codex port day to day on our own projects and kept correcting the same
@@ -29,63 +68,11 @@ Codex also has no tool for reading a file. Every command's output goes into the 
 until it passes about 10,000 tokens, and then Codex keeps only the head and the tail. The `omo`
 command reads, searches and runs commands with bounded output that says how to get the rest.
 
-## How it works
-
-- **Base instructions** (`instructions/codex-base.md`) replace Codex's built-in instructions through
-  `model_instructions_file`. They cover when to act and when to ask, how to write to the user and in
-  files, and how to read, edit and write code. Sub-agents inherit them whatever their model.
-- **The lead rule** (`rules/lead.md`) is injected into the main agent by a hook. It covers finding
-  the direction before the work, what to delegate and what to keep, and when to use a workflow.
-- **Agent roles** (`agents/*.toml`) set the model, reasoning effort and instructions for a read-only
-  lookup agent (librarian, low effort) and researcher (explorer, high effort), workers at three sizes,
-  reviewers and planners. The model names in them are the ones we use; change them to the models
-  your account offers.
-- **Skills** (`skills/`) hold everything that applies only to some tasks: programming and commit
-  policy, debugging, frontend, browsing, data work, planning and execution workflows, team mode and
-  session search.
-- **Hooks** (`hooks/`) are plain Node scripts:
-
-  | Hook | When | Does |
-  | --- | --- | --- |
-  | `resident-rule.mjs` | Session start, prompt, compaction | Injects the lead rule with the session's model name; after a compaction, a pointer to the rule file |
-  | `patch-check.mjs` | Before and after `apply_patch` | Refuses a patch whose hunk matches several places, which `apply_patch` would apply to the first; accepts a JSON edit (`{"edit", "old", "new"}`, with an optional `"line"` where the old text starts) and turns it into a patch; names the changed lines afterwards |
-  | `read-reset.mjs` | Compaction | Clears the thread's record of the ranges `omo read` has printed, so a range read again after the compaction prints its content instead of the "unchanged" note; it puts nothing back into the context itself |
-  | `explorer-handoff.mjs` | After an explorer is spawned | Reminds the lead that the judgment inside the explorer's scope is the explorer's; disagreement goes back to it as a reason, not as a reread of its sources |
-  | `subagent-context.mjs` | Sub-agent start | Gives a sub-agent the helper that loads the files its assignment lists under `Context:` |
-  | `ultrawork-trigger.mjs` | Prompt | Points a `/ulw …` or `ulw: …` request at the ultrawork skill |
-  | `thread-title.mjs` | Thread creation | Reminds a team-mode leader to title new threads |
-  | `ulw-execute-continuation.mjs` | Stop | Keeps a selected ulw-execute plan running until its final check passes |
-
-- **The `omo` command** (`tools/omo.mjs`):
-
-  | Command | Prints |
-  | --- | --- |
-  | `omo read FILE [START-END]` | The file with line numbers, a page of about 8,000 tokens at a time; an unchanged range read again in the same thread prints a one-line note |
-  | `omo grep PATTERN [PATH...]` | Matching lines grouped by file, at most 100 |
-  | `omo glob PATTERN [DIR...]` | Matching paths, at most 100 |
-  | `omo run [--grep REGEX] COMMAND` | Saves the full output to a file, then prints the exit code, the matching lines and the last 40 lines |
-
-## Repository layout
-
-| Path | What it is |
-| --- | --- |
-| `.codex-plugin/plugin.json` | Plugin manifest |
-| `.mcp.json` | Remote search servers (grep.app, Context7) |
-| `instructions/` | The base instructions, the multi-agent texts for the lead and sub-agents, the upstream instructions they were written against, and `check-upstream.mjs`, which names the upstream sections that changed since |
-| `rules/lead.md` | The lead rule |
-| `agents/` | Agent role TOMLs |
-| `skills/` | Skills; vendored ones carry their own `ATTRIBUTION.md` or `SOURCE` |
-| `hooks/` | `hooks.json` and the hook scripts |
-| `tools/omo.mjs` | The `omo` command |
-| `install.mjs` | The installer we use ourselves (see below) |
-| `test/` | Tests; nothing under it is installed |
-
 ## Installing
 
 Most people ask Codex to install a plugin, so this section is written for whoever does the work,
 person or agent. Installing changes `<codex home>/config.toml` (`~/.codex` unless `CODEX_HOME` is
 set), which every Codex session on the machine reads, so the user sees each change before it is made.
-It needs Node.js on PATH.
 
 `install.mjs` makes these changes:
 
@@ -101,22 +88,20 @@ It needs Node.js on PATH.
 It leaves alone a `model_instructions_file` or a role that `config.toml` already points somewhere
 else, and an `omo` command it did not write, and says so.
 
-To install:
+When an agent installs it:
 
-1. Clone the repository and run `node install.mjs --dry-run` in it. It prints every change without
-   making any; show that list to the user.
+1. Run `node install.mjs --dry-run` first and show the list of changes to the user.
 2. Once the user agrees, run `node install.mjs`. Let the installer make the changes rather than
    editing `config.toml` by hand.
 3. Pass on the hooks the installer lists as not yet trusted. Codex runs a plugin hook only while
    `config.toml` records the hash of its current definition, and the IDE never asks, so an untrusted
-   hook is skipped without notice. The user reviews and trusts them in a terminal `codex` session
-   under `/hooks`; an agent does not compute or write these hashes.
-4. Restart Codex, for example by reloading the VS Code window. A running session keeps the
-   instructions it started with.
+   hook is skipped. The user reviews and trusts them in a terminal `codex` session under `/hooks`;
+   an agent does not compute or write these hashes.
+4. Remind the user to restart Codex.
 
 To undo, restore `config.toml.bak-omo-lite` and delete the plugin's cache directory.
 
-Only Linux and WSL are checked. On Windows, unchecked, the hooks need `node` on PATH, and the `omo`
+On Windows, unchecked, the hooks need `node` on PATH, and the `omo`
 command, a POSIX shell script, is not installed.
 
 ## Development
@@ -130,7 +115,7 @@ node instructions/check-upstream.mjs       # upstream sections changed since our
 
 When Codex's built-in instructions change upstream, `check-upstream.mjs` (also run by the installer)
 names the changed sections. Read them, take over what applies into `codex-base.md`, then replace the
-snapshot. Commit messages follow
+snapshot; see [`instructions/`](instructions/README.md). Commit messages follow
 [the programming skill's commit policy](skills/programming/references/commit-policy.md#commit-messages).
 
 ## License

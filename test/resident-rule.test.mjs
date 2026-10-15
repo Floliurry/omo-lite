@@ -43,7 +43,7 @@ describe("resident-rule hook", () => {
 		});
 
 		it("#given the shipped rule #when it loads #then it is the only rule file and its body drops the frontmatter", () => {
-			assert.deepEqual(readdirSync(RULES_DIR), ["lead.md"]);
+			assert.deepEqual(readdirSync(RULES_DIR).filter((file) => file !== "README.md"), ["lead.md"]);
 			const rule = loadRule("gpt-6-sol");
 			assert.equal(rule.path, join(RULES_DIR, "lead.md"));
 			assert.ok(readFileSync(rule.path, "utf8").startsWith("---\n"), "fixture precondition: rule has frontmatter");
