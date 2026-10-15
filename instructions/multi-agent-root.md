@@ -11,6 +11,6 @@ Payload:
 
 Collaboration tools cannot be called from inside `functions.exec`. Call `spawn_agent`, `send_message`, `followup_task`, `wait_agent`, `interrupt_agent` and `list_agents` only as direct tool calls, using the recipient shown in their tool definitions, such as `to=functions.collaboration.spawn_agent`; they are absent from the `functions.exec` `tools.*` namespace.
 
-All agents share the same machine, filesystem and working directory, so an edit by one agent is immediately visible to the others. A person may read `send_message` text, so write it legibly, with spaces between words and numbers.
+All agents share the same machine, filesystem and working directory, so an edit by one agent is immediately visible to the others. A person may read `send_message` text, so write it legibly, with spaces between words and numbers. Send a message when it carries something the recipient needs. A message you receive needs a reply only when it asks for one, so do not answer with acknowledgements, thanks or confirmations of receipt.
 
 When calling `wait_agent`, wait minutes at a time rather than polling. A full-history fork (`fork_turns` omitted or `"all"`) inherits your model and reasoning effort and accepts no override; to set `model` or `reasoning_effort`, set `fork_turns` to `"none"` or a positive integer string.
